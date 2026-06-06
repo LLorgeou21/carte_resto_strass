@@ -344,7 +344,10 @@
 <div id="sidebar">
   <button id="toggle-sidebar" title="Afficher/masquer le panneau">◀</button>
   <div id="sidebar-header">
-    <h1>🍽️ Restos Strasbourg</h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h1 style="margin-bottom:0">🍽️ Restos Strasbourg</h1>
+      <button id="btn-settings" title="Paramètres de synchronisation" style="background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;font-size:16px;padding:4px 8px;cursor:pointer">⚙️</button>
+    </div>
     <div id="filters">
       <input type="text" id="filter-search" placeholder="Rechercher un resto…" />
       <div class="filter-row">
@@ -433,16 +436,36 @@
 <!-- SETUP JSONBIN -->
 <div id="setup-overlay">
   <div id="setup-box">
-    <h2>Configuration JSONBin</h2>
-    <p>
-      Pour synchroniser tes données entre appareils, entre ta clé API JSONBin.<br><br>
-      <strong>Comment l'obtenir :</strong><br>
-      1. Crée un compte sur <strong>jsonbin.io</strong><br>
-      2. Va dans <em>API Keys</em> → copie ta <em>Master Key</em>
-    </p>
-    <div id="setup-error">Clé invalide ou erreur réseau. Vérifie et réessaie.</div>
-    <input type="text" id="setup-key-input" placeholder="$2a$10$…" />
-    <button class="btn btn-primary" id="setup-confirm" style="width:100%">Enregistrer</button>
+    <h2 id="setup-title">Configuration JSONBin</h2>
+    <div id="setup-step-1">
+      <p>
+        Pour synchroniser tes données entre appareils.<br><br>
+        <strong>1. Clé API (Master Key)</strong><br>
+        Crée un compte sur <strong>jsonbin.io</strong> → <em>API Keys</em> → copie ta <em>Master Key</em>
+      </p>
+      <div id="setup-error">Clé invalide ou erreur réseau. Vérifie et réessaie.</div>
+      <input type="text" id="setup-key-input" placeholder="$2a$10$…" autocomplete="off" />
+
+      <p style="margin-top:14px">
+        <strong>2. Bin ID</strong> <span style="font-weight:400;color:#888">(optionnel)</span><br>
+        <span style="font-size:12px;color:#666">Laisse vide sur le <strong>premier appareil</strong> (le bin sera créé automatiquement).<br>
+        Sur les appareils suivants, colle l'ID affiché après la 1ère configuration.</span>
+      </p>
+      <input type="text" id="setup-bin-input" placeholder="ex : 6840a2f…" autocomplete="off" style="margin-top:4px" />
+      <button class="btn btn-primary" id="setup-confirm" style="width:100%;margin-top:12px">Enregistrer</button>
+    </div>
+
+    <div id="setup-step-2" style="display:none">
+      <p style="color:#27ae60;font-weight:600;margin-bottom:12px">✓ Configuration enregistrée !</p>
+      <p style="font-size:13px;color:#555;margin-bottom:8px">
+        <strong>Ton Bin ID</strong> — copie-le pour l'utiliser sur tes autres appareils :
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+        <input type="text" id="display-bin-id" readonly style="flex:1;background:#f5f5f5;color:#333;font-family:monospace;font-size:12px" />
+        <button class="btn btn-secondary" id="copy-bin-id" style="flex:none;padding:9px 12px">Copier</button>
+      </div>
+      <button class="btn btn-primary" id="setup-done" style="width:100%">C'est parti !</button>
+    </div>
   </div>
 </div>
 
@@ -564,6 +587,11 @@ async function createBin() {
     localStorage.setItem(LS_BIN, binId);
     restos = [];
     renderAll();
+    // afficher le bin ID à l'utilisateur pour les autres appareils
+    document.getElementById('display-bin-id').value = binId;
+    document.getElementById('setup-step-1').style.display = 'none';
+    document.getElementById('setup-step-2').style.display = 'block';
+    document.getElementById('setup-overlay').classList.add('open');
   } catch(e) {
     console.error('Erreur création bin', e);
     showSetupError();
@@ -592,6 +620,10 @@ async function saveData() {
 function showSetup() {
   document.getElementById('setup-overlay').classList.add('open');
   document.getElementById('setup-error').style.display = 'none';
+  document.getElementById('setup-step-1').style.display = 'block';
+  document.getElementById('setup-step-2').style.display = 'none';
+  document.getElementById('setup-key-input').value = apiKey || '';
+  document.getElementById('setup-bin-input').value = binId || '';
 }
 function hideSetup() {
   document.getElementById('setup-overlay').classList.remove('open');
@@ -602,14 +634,32 @@ function showSetupError() {
 
 document.getElementById('setup-confirm').addEventListener('click', async () => {
   const key = document.getElementById('setup-key-input').value.trim();
+  const bid = document.getElementById('setup-bin-input').value.trim();
   if (!key) return;
   apiKey = key;
   localStorage.setItem(LS_KEY, key);
-  binId = '';
-  localStorage.removeItem(LS_BIN);
-  hideSetup();
-  await loadData();
+  if (bid) {
+    binId = bid;
+    localStorage.setItem(LS_BIN, bid);
+    hideSetup();
+    await loadData();
+  } else {
+    binId = '';
+    localStorage.removeItem(LS_BIN);
+    await createBin();
+  }
 });
+
+document.getElementById('copy-bin-id').addEventListener('click', () => {
+  const input = document.getElementById('display-bin-id');
+  input.select();
+  navigator.clipboard.writeText(input.value).catch(() => {});
+  document.getElementById('copy-bin-id').textContent = '✓ Copié';
+  setTimeout(() => { document.getElementById('copy-bin-id').textContent = 'Copier'; }, 2000);
+});
+
+document.getElementById('setup-done').addEventListener('click', hideSetup);
+document.getElementById('btn-settings').addEventListener('click', showSetup);
 
 // ══════════════════════════════════════════
 //  MODAL
