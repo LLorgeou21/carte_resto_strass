@@ -925,6 +925,9 @@ toggleBtn.addEventListener('click', () => {
   setTimeout(() => map.invalidateSize(), 310);
 });
 
+// ResizeObserver : recalcule la carte dès que son conteneur change de taille
+new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById('map-container'));
+
 
 // ══════════════════════════════════════════
 //  INIT
