@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carte Restos Strasbourg</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      height: 100dvh;
+      overflow: hidden;
+      background: #f5f5f5;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: 320px;
+      min-width: 320px;
+      height: 100%;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,.12);
+      transition: transform .3s ease;
+      z-index: 1000;
+      position: relative;
+    }
+    #sidebar.collapsed {
+      transform: translateX(-320px);
+      min-width: 0;
+    }
+
+    #toggle-sidebar {
+      position: absolute;
+      right: -36px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 56px;
+      background: #fff;
+      border: none;
+      border-radius: 0 8px 8px 0;
+      box-shadow: 2px 0 6px rgba(0,0,0,.15);
+      cursor: pointer;
+      font-size: 18px;
+      color: #555;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+    }
+
+    #sidebar-header {
+      padding: 16px;
+      background: #c0392b;
+      color: #fff;
+    }
+    #sidebar-header h1 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+
+    /* filtres */
+    #filters { display: flex; flex-direction: column; gap: 8px; }
+    #filters select, #filters input {
+      width: 100%;
+      padding: 6px 8px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      background: rgba(255,255,255,.2);
+      color: #fff;
+    }
+    #filters select option { color: #333; background: #fff; }
+    #filters input::placeholder { color: rgba(255,255,255,.7); }
+
+    .filter-row { display: flex; gap: 6px; }
+    .filter-row select { flex: 1; }
+
+    #btn-reset-filters {
+      padding: 5px 10px;
+      background: rgba(255,255,255,.25);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #btn-reset-filters:hover { background: rgba(255,255,255,.4); }
+
+    /* liste */
+    #resto-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    #resto-count {
+      font-size: 12px;
+      color: #888;
+      padding: 6px 8px 2px;
+    }
+
+    .resto-card {
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: box-shadow .2s;
+    }
+    .resto-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .resto-card.active { border-color: #c0392b; background: #fff5f5; }
+
+    .card-name { font-weight: 700; font-size: 14px; color: #222; margin-bottom: 4px; }
+    .card-meta { font-size: 12px; color: #666; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .card-stars { color: #f0a500; font-size: 13px; }
+    .badge {
+      background: #eee;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+
+    /* ── MAP ── */
+    #map-container {
+      flex: 1;
+      position: relative;
+    }
+    #map { width: 100%; height: 100%; }
+
+    /* instruction */
+    #map-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.65);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 900;
+      transition: opacity .4s;
+    }
+
+    /* ── MODAL ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 90dvh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,.2);
+    }
+    #modal-header {
+      background: #c0392b;
+      color: #fff;
+      padding: 16px 20px;
+      border-radius: 14px 14px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #modal-header h2 { font-size: 16px; }
+    #modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    #modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    .field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color .2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: #c0392b;
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* étoiles interactives */
+    .stars-input { display: flex; gap: 6px; }
+    .star-btn {
+      font-size: 28px;
+      color: #ddd;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      line-height: 1;
+      transition: color .15s, transform .1s;
+    }
+    .star-btn:hover, .star-btn.active { color: #f0a500; transform: scale(1.15); }
+
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #c0392b; color: #fff; }
+    .btn-secondary { background: #eee; color: #333; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-warning { background: #e67e22; color: #fff; }
+
+    /* bouton ajout flottant */
+    #btn-add-mode {
+      position: absolute;
+      bottom: 32px;
+      right: 16px;
+      z-index: 900;
+      background: #c0392b;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background .2s, transform .15s;
+    }
+    #btn-add-mode:hover { transform: scale(1.05); }
+    #btn-add-mode.active {
+      background: #27ae60;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 4px 12px rgba(39,174,96,.4); }
+      50%       { box-shadow: 0 4px 20px rgba(39,174,96,.8); }
+    }
+
+    /* curseur carte en mode ajout */
+    #map.add-mode { cursor: crosshair; }
+
+    /* mode déplacement */
+    #move-hint {
+      display: none;
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e67e22;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 3000;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    #move-hint.visible { display: block; }
+
+    /* ── SETUP ── */
+    #setup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 4000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #setup-overlay.open { display: flex; }
+    #setup-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+    }
+    #setup-box h2 { font-size: 18px; margin-bottom: 8px; color: #c0392b; }
+    #setup-box p { font-size: 13px; color: #555; margin-bottom: 16px; line-height: 1.5; }
+    #setup-box input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    #setup-box input:focus { outline: none; border-color: #c0392b; }
+    #setup-error { color: #e74c3c; font-size: 13px; margin-bottom: 8px; display: none; }
+
+    /* responsive mobile */
+    @media (max-width: 640px) {
+      #sidebar { width: 100%; min-width: 100%; position: absolute; top: 0; left: 0; height: 50%; }
+      #sidebar.collapsed { transform: translateY(-100%); }
+      #toggle-sidebar {
+        right: 50%;
+        top: auto;
+        bottom: -36px;
+        transform: translateX(50%);
+        width: 56px;
+        height: 36px;
+        border-radius: 0 0 8px 8px;
+      }
+      #map-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; }
+      body { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <button id="toggle-sidebar" title="Afficher/masquer le panneau">◀</button>
+  <div id="sidebar-header">
+    <h1>🍽️ Restos Strasbourg</h1>
+    <div id="filters">
+      <input type="text" id="filter-search" placeholder="Rechercher un resto…" />
+      <div class="filter-row">
+        <select id="filter-cuisine">
+          <option value="">Tous types</option>
+        </select>
+        <select id="filter-price">
+          <option value="">Tout prix</option>
+          <option value="€">€</option>
+          <option value="€€">€€</option>
+          <option value="€€€">€€€</option>
+        </select>
+        <select id="filter-note">
+          <option value="">Toute note</option>
+          <option value="5">★★★★★</option>
+          <option value="4">★★★★+</option>
+          <option value="3">★★★+</option>
+          <option value="2">★★+</option>
+          <option value="1">★+</option>
+        </select>
+        <button id="btn-reset-filters">↺</button>
+      </div>
+    </div>
+  </div>
+  <div id="resto-count"></div>
+  <div id="resto-list"></div>
+</div>
+
+<!-- MAP -->
+<div id="map-container">
+  <div id="map"></div>
+  <button id="btn-add-mode" title="Activer le mode ajout">
+    <span id="btn-add-icon">＋</span>
+    <span id="btn-add-label">Ajouter un resto</span>
+  </button>
+</div>
+
+<!-- MOVE HINT -->
+<div id="move-hint">📍 Cliquez sur la carte pour déplacer le restaurant</div>
+
+<!-- MODAL RESTO -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-header">
+      <h2 id="modal-title">Nouveau restaurant</h2>
+      <button id="modal-close">×</button>
+    </div>
+    <div id="modal-body">
+      <div class="field">
+        <label>Nom du restaurant</label>
+        <input type="text" id="f-name" placeholder="Ex : Au Vieux Strasbourg" />
+      </div>
+      <div class="field">
+        <label>Type de cuisine</label>
+        <input type="text" id="f-cuisine" placeholder="Ex : Alsacien, Japonais, Pizza…" list="cuisine-suggestions" />
+        <datalist id="cuisine-suggestions"></datalist>
+      </div>
+      <div class="field">
+        <label>Prix</label>
+        <select id="f-price">
+          <option value="">— Choisir —</option>
+          <option value="€">€ — Petit budget</option>
+          <option value="€€">€€ — Prix moyen</option>
+          <option value="€€€">€€€ — Gastronomique</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Note</label>
+        <div class="stars-input" id="stars-input">
+          <button class="star-btn" data-val="1">★</button>
+          <button class="star-btn" data-val="2">★</button>
+          <button class="star-btn" data-val="3">★</button>
+          <button class="star-btn" data-val="4">★</button>
+          <button class="star-btn" data-val="5">★</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Commentaire</label>
+        <textarea id="f-comment" placeholder="Tes impressions…"></textarea>
+      </div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP JSONBIN -->
+<div id="setup-overlay">
+  <div id="setup-box">
+    <h2>Configuration JSONBin</h2>
+    <p>
+      Pour synchroniser tes données entre appareils, entre ta clé API JSONBin.<br><br>
+      <strong>Comment l'obtenir :</strong><br>
+      1. Crée un compte sur <strong>jsonbin.io</strong><br>
+      2. Va dans <em>API Keys</em> → copie ta <em>Master Key</em>
+    </p>
+    <div id="setup-error">Clé invalide ou erreur réseau. Vérifie et réessaie.</div>
+    <input type="text" id="setup-key-input" placeholder="$2a$10$…" />
+    <button class="btn btn-primary" id="setup-confirm" style="width:100%">Enregistrer</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const STRASBOURG = [48.5734, 7.7521];
+const ZOOM_INIT  = 14;
+const LS_KEY     = 'resto_sbg_api_key';
+const LS_BIN     = 'resto_sbg_bin_id';
+const API_BASE   = 'https://api.jsonbin.io/v3';
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let restos   = [];   // [{id, name, cuisine, price, note, comment, lat, lng}]
+let markers  = {};   // id → L.marker
+let editId   = null; // resto en cours d'édition
+let currentNote = 0;
+let moveMode = false;
+let movingId = null;
+let addMode  = false;
+let apiKey   = localStorage.getItem(LS_KEY) || '';
+let binId    = localStorage.getItem(LS_BIN) || '';
+let activeCardId = null;
+
+// ══════════════════════════════════════════
+//  MAP
+// ══════════════════════════════════════════
+const map = L.map('map', { zoomControl: true }).setView(STRASBOURG, ZOOM_INIT);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// icône personnalisée
+function makeIcon(note) {
+  const color = note >= 4 ? '#27ae60' : note >= 3 ? '#f0a500' : note >= 1 ? '#c0392b' : '#999';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
+    <ellipse cx="15" cy="40" rx="6" ry="2" fill="rgba(0,0,0,.2)"/>
+    <path d="M15 0 C7 0 1 6 1 14 C1 24 15 40 15 40 C15 40 29 24 29 14 C29 6 23 0 15 0Z" fill="${color}" stroke="white" stroke-width="1.5"/>
+    <text x="15" y="18" text-anchor="middle" font-size="13" fill="white" font-family="Arial" font-weight="bold">${note || '?'}</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    iconSize: [30, 42],
+    iconAnchor: [15, 42],
+    popupAnchor: [0, -44],
+    className: ''
+  });
+}
+
+map.on('click', e => {
+  if (moveMode) {
+    finishMove(e.latlng.lat, e.latlng.lng);
+    return;
+  }
+  if (addMode) {
+    setAddMode(false);
+    openModalNew(e.latlng.lat, e.latlng.lng);
+  }
+});
+
+function setAddMode(on) {
+  addMode = on;
+  const btn = document.getElementById('btn-add-mode');
+  const mapEl = document.getElementById('map');
+  btn.classList.toggle('active', on);
+  mapEl.classList.toggle('add-mode', on);
+  document.getElementById('btn-add-icon').textContent  = on ? '✕' : '＋';
+  document.getElementById('btn-add-label').textContent = on ? 'Annuler' : 'Ajouter un resto';
+}
+
+document.getElementById('btn-add-mode').addEventListener('click', () => setAddMode(!addMode));
+
+// ══════════════════════════════════════════
+//  JSONBIN
+// ══════════════════════════════════════════
+async function loadData() {
+  if (!apiKey) { showSetup(); return; }
+  if (!binId) {
+    await createBin();
+    return;
+  }
+  try {
+    const r = await fetch(`${API_BASE}/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': apiKey }
+    });
+    if (!r.ok) throw new Error(r.status);
+    const json = await r.json();
+    restos = json.record.restos || [];
+    renderAll();
+  } catch(e) {
+    console.error('Erreur chargement', e);
+    // si bin introuvable, recréer
+    if (e.message === '404') { binId = ''; localStorage.removeItem(LS_BIN); await createBin(); }
+  }
+}
+
+async function createBin() {
+  try {
+    const r = await fetch(`${API_BASE}/b`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': apiKey,
+        'X-Bin-Name': 'restos-strasbourg',
+        'X-Bin-Private': 'true'
+      },
+      body: JSON.stringify({ restos: [] })
+    });
+    if (!r.ok) throw new Error(r.status);
+    const json = await r.json();
+    binId = json.metadata.id;
+    localStorage.setItem(LS_BIN, binId);
+    restos = [];
+    renderAll();
+  } catch(e) {
+    console.error('Erreur création bin', e);
+    showSetupError();
+  }
+}
+
+async function saveData() {
+  if (!apiKey || !binId) return;
+  try {
+    await fetch(`${API_BASE}/b/${binId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': apiKey
+      },
+      body: JSON.stringify({ restos })
+    });
+  } catch(e) {
+    console.error('Erreur sauvegarde', e);
+  }
+}
+
+// ══════════════════════════════════════════
+//  SETUP
+// ══════════════════════════════════════════
+function showSetup() {
+  document.getElementById('setup-overlay').classList.add('open');
+  document.getElementById('setup-error').style.display = 'none';
+}
+function hideSetup() {
+  document.getElementById('setup-overlay').classList.remove('open');
+}
+function showSetupError() {
+  document.getElementById('setup-error').style.display = 'block';
+}
+
+document.getElementById('setup-confirm').addEventListener('click', async () => {
+  const key = document.getElementById('setup-key-input').value.trim();
+  if (!key) return;
+  apiKey = key;
+  localStorage.setItem(LS_KEY, key);
+  binId = '';
+  localStorage.removeItem(LS_BIN);
+  hideSetup();
+  await loadData();
+});
+
+// ══════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════
+let pendingLat = null, pendingLng = null;
+
+function openModalNew(lat, lng) {
+  editId = null;
+  pendingLat = lat;
+  pendingLng = lng;
+  currentNote = 0;
+  document.getElementById('modal-title').textContent = 'Nouveau restaurant';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-cuisine').value = '';
+  document.getElementById('f-price').value = '';
+  document.getElementById('f-comment').value = '';
+  renderStars(0);
+  document.getElementById('modal-actions').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+    <button class="btn btn-primary" onclick="saveNew()">Ajouter</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function openModalEdit(id) {
+  const r = restos.find(x => x.id === id);
+  if (!r) return;
+  editId = id;
+  currentNote = r.note;
+  document.getElementById('modal-title').textContent = 'Modifier le restaurant';
+  document.getElementById('f-name').value = r.name;
+  document.getElementById('f-cuisine').value = r.cuisine || '';
+  document.getElementById('f-price').value = r.price || '';
+  document.getElementById('f-comment').value = r.comment || '';
+  renderStars(r.note);
+  document.getElementById('modal-actions').innerHTML = `
+    <button class="btn btn-danger" onclick="deleteResto('${id}')">Supprimer</button>
+    <button class="btn btn-warning" onclick="startMove('${id}')">Déplacer</button>
+    <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+    <button class="btn btn-primary" onclick="saveEdit()">Enregistrer</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editId = null;
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// étoiles
+function renderStars(val) {
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.val) <= val);
+  });
+}
+document.querySelectorAll('.star-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentNote = parseInt(btn.dataset.val);
+    renderStars(currentNote);
+  });
+});
+
+function getFormData() {
+  return {
+    name:    document.getElementById('f-name').value.trim(),
+    cuisine: document.getElementById('f-cuisine').value.trim(),
+    price:   document.getElementById('f-price').value,
+    note:    currentNote,
+    comment: document.getElementById('f-comment').value.trim()
+  };
+}
+
+function saveNew() {
+  const data = getFormData();
+  if (!data.name) { alert('Le nom est obligatoire.'); return; }
+  const r = { id: Date.now().toString(), lat: pendingLat, lng: pendingLng, ...data };
+  restos.push(r);
+  addMarker(r);
+  closeModal();
+  renderSidebar();
+  updateCuisineSuggestions();
+  saveData();
+}
+
+function saveEdit() {
+  const data = getFormData();
+  if (!data.name) { alert('Le nom est obligatoire.'); return; }
+  const r = restos.find(x => x.id === editId);
+  if (!r) return;
+  Object.assign(r, data);
+  // màj marker
+  if (markers[r.id]) {
+    markers[r.id].setIcon(makeIcon(r.note));
+    markers[r.id].setPopupContent(popupContent(r));
+  }
+  closeModal();
+  renderSidebar();
+  updateCuisineSuggestions();
+  saveData();
+}
+
+function deleteResto(id) {
+  if (!confirm('Supprimer ce restaurant ?')) return;
+  restos = restos.filter(x => x.id !== id);
+  if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+  closeModal();
+  renderSidebar();
+  updateCuisineSuggestions();
+  saveData();
+}
+
+// ══════════════════════════════════════════
+//  DÉPLACEMENT
+// ══════════════════════════════════════════
+function startMove(id) {
+  movingId = id;
+  moveMode = true;
+  closeModal();
+  document.getElementById('move-hint').classList.add('visible');
+}
+
+function finishMove(lat, lng) {
+  const r = restos.find(x => x.id === movingId);
+  if (r) {
+    r.lat = lat; r.lng = lng;
+    if (markers[r.id]) markers[r.id].setLatLng([lat, lng]);
+    saveData();
+  }
+  moveMode = false;
+  movingId = null;
+  document.getElementById('move-hint').classList.remove('visible');
+}
+
+// ══════════════════════════════════════════
+//  MARKERS
+// ══════════════════════════════════════════
+function popupContent(r) {
+  const stars = '★'.repeat(r.note) + '☆'.repeat(5 - r.note);
+  return `<div style="min-width:160px">
+    <strong style="font-size:14px">${r.name}</strong><br>
+    <span style="color:#f0a500">${stars}</span><br>
+    ${r.cuisine ? `<span style="color:#666;font-size:12px">${r.cuisine}</span> ` : ''}
+    ${r.price ? `<span style="background:#eee;padding:1px 5px;border-radius:4px;font-size:12px">${r.price}</span>` : ''}<br>
+    ${r.comment ? `<em style="font-size:12px;color:#444">${r.comment}</em><br>` : ''}
+    <button onclick="openModalEdit('${r.id}')" style="margin-top:8px;padding:4px 10px;background:#c0392b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">Modifier</button>
+  </div>`;
+}
+
+function addMarker(r) {
+  const m = L.marker([r.lat, r.lng], { icon: makeIcon(r.note) })
+    .addTo(map)
+    .bindPopup(popupContent(r));
+  m.on('click', () => {
+    setActiveCard(r.id);
+  });
+  markers[r.id] = m;
+}
+
+// ══════════════════════════════════════════
+//  SIDEBAR
+// ══════════════════════════════════════════
+function getFilters() {
+  return {
+    search:  document.getElementById('filter-search').value.toLowerCase(),
+    cuisine: document.getElementById('filter-cuisine').value,
+    price:   document.getElementById('filter-price').value,
+    note:    parseInt(document.getElementById('filter-note').value) || 0
+  };
+}
+
+function filteredRestos() {
+  const f = getFilters();
+  return restos.filter(r => {
+    if (f.search && !r.name.toLowerCase().includes(f.search) && !(r.cuisine||'').toLowerCase().includes(f.search)) return false;
+    if (f.cuisine && r.cuisine !== f.cuisine) return false;
+    if (f.price && r.price !== f.price) return false;
+    if (f.note && r.note < f.note) return false;
+    return true;
+  });
+}
+
+function renderSidebar() {
+  const list = filteredRestos();
+  document.getElementById('resto-count').textContent =
+    `${list.length} restaurant${list.length !== 1 ? 's' : ''}`;
+
+  document.getElementById('resto-list').innerHTML = list.length
+    ? list.map(r => `
+      <div class="resto-card${r.id === activeCardId ? ' active' : ''}" onclick="focusResto('${r.id}')">
+        <div class="card-name">${r.name}</div>
+        <div class="card-meta">
+          <span class="card-stars">${'★'.repeat(r.note)}${'☆'.repeat(5-r.note)}</span>
+          ${r.cuisine ? `<span class="badge">${r.cuisine}</span>` : ''}
+          ${r.price ? `<span class="badge">${r.price}</span>` : ''}
+        </div>
+        ${r.comment ? `<div style="font-size:12px;color:#777;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.comment}</div>` : ''}
+      </div>`).join('')
+    : '<p style="padding:16px;color:#aaa;font-size:13px;text-align:center">Aucun restaurant trouvé</p>';
+}
+
+function focusResto(id) {
+  const r = restos.find(x => x.id === id);
+  if (!r) return;
+  setActiveCard(id);
+  map.setView([r.lat, r.lng], 16);
+  markers[id]?.openPopup();
+}
+
+function setActiveCard(id) {
+  activeCardId = id;
+  renderSidebar();
+}
+
+function updateCuisineSuggestions() {
+  const types = [...new Set(restos.map(r => r.cuisine).filter(Boolean))].sort();
+  // datalist
+  document.getElementById('cuisine-suggestions').innerHTML =
+    types.map(t => `<option value="${t}">`).join('');
+  // filtre
+  const sel = document.getElementById('filter-cuisine');
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">Tous types</option>` +
+    types.map(t => `<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
+}
+
+function renderAll() {
+  // nettoyer anciens markers
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  restos.forEach(addMarker);
+  renderSidebar();
+  updateCuisineSuggestions();
+}
+
+// filtres
+['filter-search','filter-cuisine','filter-price','filter-note'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderSidebar);
+  document.getElementById(id).addEventListener('change', renderSidebar);
+});
+
+document.getElementById('btn-reset-filters').addEventListener('click', () => {
+  document.getElementById('filter-search').value = '';
+  document.getElementById('filter-cuisine').value = '';
+  document.getElementById('filter-price').value = '';
+  document.getElementById('filter-note').value = '';
+  renderSidebar();
+});
+
+// toggle sidebar
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggle-sidebar');
+toggleBtn.addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  const isMobile = window.innerWidth <= 640;
+  toggleBtn.textContent = sidebar.classList.contains('collapsed')
+    ? (isMobile ? '▼' : '▶')
+    : (isMobile ? '▲' : '◀');
+  setTimeout(() => map.invalidateSize(), 310);
+});
+
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>
