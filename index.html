@@ -19,34 +19,32 @@
     /* ── SIDEBAR ── */
     #sidebar {
       width: 320px;
-      min-width: 320px;
+      min-width: 0;
+      flex-shrink: 0;
       height: 100%;
       background: #fff;
       display: flex;
       flex-direction: column;
       box-shadow: 2px 0 8px rgba(0,0,0,.12);
-      transition: transform .3s ease;
+      overflow: hidden;
+      transition: width .3s ease;
       z-index: 1000;
-      position: relative;
     }
-    #sidebar.collapsed {
-      transform: translateX(-320px);
-      min-width: 0;
-    }
+    #sidebar.collapsed { width: 0; }
 
     #toggle-sidebar {
       position: absolute;
-      right: -36px;
+      left: 0;
       top: 50%;
       transform: translateY(-50%);
-      width: 36px;
+      width: 24px;
       height: 56px;
       background: #fff;
       border: none;
       border-radius: 0 8px 8px 0;
       box-shadow: 2px 0 6px rgba(0,0,0,.15);
       cursor: pointer;
-      font-size: 18px;
+      font-size: 14px;
       color: #555;
       display: flex;
       align-items: center;
@@ -322,19 +320,25 @@
 
     /* responsive mobile */
     @media (max-width: 640px) {
-      #sidebar { width: 100%; min-width: 100%; position: absolute; top: 0; left: 0; height: 50%; }
-      #sidebar.collapsed { transform: translateY(-100%); }
+      body { flex-direction: column; }
+      #sidebar {
+        width: 100%;
+        height: 50%;
+        min-width: 0;
+        flex-shrink: 0;
+        overflow: hidden;
+        transition: height .3s ease;
+      }
+      #sidebar.collapsed { width: 100%; height: 0; }
+      #map-container { flex: 1; }
       #toggle-sidebar {
-        right: 50%;
-        top: auto;
-        bottom: -36px;
-        transform: translateX(50%);
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
         width: 56px;
-        height: 36px;
+        height: 24px;
         border-radius: 0 0 8px 8px;
       }
-      #map-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; }
-      body { flex-direction: column; }
     }
   </style>
 </head>
@@ -342,7 +346,6 @@
 
 <!-- SIDEBAR -->
 <div id="sidebar">
-  <button id="toggle-sidebar" title="Afficher/masquer le panneau">◀</button>
   <div id="sidebar-header">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <h1 style="margin-bottom:0">🍽️ Restos Strasbourg</h1>
@@ -378,6 +381,7 @@
 
 <!-- MAP -->
 <div id="map-container">
+  <button id="toggle-sidebar" title="Afficher/masquer le panneau">◀</button>
   <div id="map"></div>
   <button id="btn-add-mode" title="Activer le mode ajout">
     <span id="btn-add-icon">＋</span>
@@ -917,16 +921,17 @@ document.getElementById('btn-reset-filters').addEventListener('click', () => {
 const sidebar = document.getElementById('sidebar');
 const toggleBtn = document.getElementById('toggle-sidebar');
 toggleBtn.addEventListener('click', () => {
-  sidebar.classList.toggle('collapsed');
+  const collapsed = sidebar.classList.toggle('collapsed');
   const isMobile = window.innerWidth <= 640;
-  toggleBtn.textContent = sidebar.classList.contains('collapsed')
+  toggleBtn.textContent = collapsed
     ? (isMobile ? '▼' : '▶')
     : (isMobile ? '▲' : '◀');
-  setTimeout(() => map.invalidateSize(), 310);
 });
 
-// ResizeObserver : recalcule la carte dès que son conteneur change de taille
-new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById('map-container'));
+// ResizeObserver : recalcule la carte quand son conteneur change de taille
+let _rsz;
+new ResizeObserver(() => { clearTimeout(_rsz); _rsz = setTimeout(() => map.invalidateSize(), 50); })
+  .observe(document.getElementById('map-container'));
 
 
 // ══════════════════════════════════════════
