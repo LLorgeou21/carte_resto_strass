@@ -603,8 +603,8 @@
         </select>
       </div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;cursor:pointer">
-        <input type="checkbox" id="rand-exclude-totry" checked />
-        Exclure les "À tester"
+        <input type="checkbox" id="rand-only-totry" />
+        Uniquement les "À tester"
       </label>
       <button id="btn-random-pick">🎲 Choisir pour moi !</button>
       <div id="rand-result" style="display:none">
@@ -876,10 +876,10 @@ function pickRandom() {
   const cuisine  = document.getElementById('rand-cuisine').value;
   const price    = document.getElementById('rand-price').value;
   const minNote  = parseInt(document.getElementById('rand-note').value) || 0;
-  const exclTry  = document.getElementById('rand-exclude-totry').checked;
+  const onlyTry  = document.getElementById('rand-only-totry').checked;
 
   const pool = restos.filter(r => {
-    if (exclTry && r.toTry)           return false;
+    if (onlyTry && !r.toTry)             return false;
     if (cuisine && r.cuisine !== cuisine) return false;
     if (price   && r.price   !== price)   return false;
     if (minNote && r.note    <  minNote)  return false;
