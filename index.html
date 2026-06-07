@@ -111,6 +111,7 @@
     }
     .resto-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
     .resto-card.active { border-color: #c0392b; background: #fff5f5; }
+    .resto-card.to-try-card { border-left: 3px solid #3498db; }
 
     .card-name { font-weight: 700; font-size: 14px; color: #222; margin-bottom: 4px; }
     .card-meta { font-size: 12px; color: #666; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -267,6 +268,128 @@
     /* curseur carte en mode ajout */
     #map.add-mode { cursor: crosshair; }
 
+    /* ── À TESTER marker ── */
+    .pulse-marker { animation: markerBounce 1.8s ease-in-out infinite; display: inline-block; }
+    @keyframes markerBounce {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-6px); }
+    }
+
+    /* badge À tester */
+    .badge-totry {
+      background: #3498db;
+      color: #fff;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* toggle À tester dans le formulaire */
+    .totry-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #eaf4fd;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1.5px solid #aed6f1;
+      transition: background .2s;
+      user-select: none;
+    }
+    .totry-toggle:hover { background: #d6eaf8; }
+    .totry-toggle input { display: none; }
+    .totry-switch {
+      width: 36px; height: 20px;
+      background: #bdc3c7;
+      border-radius: 20px;
+      position: relative;
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+    .totry-switch::after {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: transform .2s;
+    }
+    .totry-toggle input:checked + .totry-switch { background: #3498db; }
+    .totry-toggle input:checked + .totry-switch::after { transform: translateX(16px); }
+    .totry-label { font-size: 14px; font-weight: 600; color: #2c3e50; }
+
+    /* ── MODAL HASARD ── */
+    #random-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #random-overlay.open { display: flex; }
+    #random-box {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.2);
+      overflow: hidden;
+    }
+    #random-header {
+      background: #8e44ad;
+      color: #fff;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #random-header h2 { font-size: 16px; }
+    #random-close {
+      background: none; border: none; color: #fff;
+      font-size: 22px; cursor: pointer; line-height: 1;
+    }
+    #random-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    #rand-result {
+      background: #f9f0ff;
+      border: 1.5px solid #d7bde2;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #rand-result h3 { font-size: 17px; color: #2c3e50; }
+    #rand-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    #btn-random-pick {
+      background: #8e44ad;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    #btn-random-pick:hover { opacity: .85; }
+    #btn-random-again {
+      background: none;
+      border: 1.5px solid #8e44ad;
+      color: #8e44ad;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #btn-random-again:hover { background: #f9f0ff; }
+
     /* mode déplacement */
     #move-hint {
       display: none;
@@ -349,7 +472,10 @@
   <div id="sidebar-header">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <h1 style="margin-bottom:0">🍽️ Restos Strasbourg</h1>
-      <button id="btn-settings" title="Paramètres de synchronisation" style="background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;font-size:16px;padding:4px 8px;cursor:pointer">⚙️</button>
+      <div style="display:flex;gap:6px">
+        <button id="btn-random-open" title="On mange où ?" style="background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;font-size:16px;padding:4px 8px;cursor:pointer">🎲</button>
+        <button id="btn-settings" title="Paramètres de synchronisation" style="background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;font-size:16px;padding:4px 8px;cursor:pointer">⚙️</button>
+      </div>
     </div>
     <div id="filters">
       <input type="text" id="filter-search" placeholder="Rechercher un resto…" />
@@ -400,6 +526,13 @@
       <button id="modal-close">×</button>
     </div>
     <div id="modal-body">
+      <!-- Toggle À tester -->
+      <label class="totry-toggle">
+        <input type="checkbox" id="f-totry" />
+        <span class="totry-switch"></span>
+        <span class="totry-label">📌 À tester</span>
+      </label>
+
       <div class="field">
         <label>Nom du restaurant</label>
         <input type="text" id="f-name" placeholder="Ex : Au Vieux Strasbourg" />
@@ -418,21 +551,70 @@
           <option value="€€€">€€€ — Gastronomique</option>
         </select>
       </div>
-      <div class="field">
-        <label>Note</label>
-        <div class="stars-input" id="stars-input">
-          <button class="star-btn" data-val="1">★</button>
-          <button class="star-btn" data-val="2">★</button>
-          <button class="star-btn" data-val="3">★</button>
-          <button class="star-btn" data-val="4">★</button>
-          <button class="star-btn" data-val="5">★</button>
+      <div id="fields-note-comment">
+        <div class="field">
+          <label>Note</label>
+          <div class="stars-input" id="stars-input">
+            <button class="star-btn" data-val="1">★</button>
+            <button class="star-btn" data-val="2">★</button>
+            <button class="star-btn" data-val="3">★</button>
+            <button class="star-btn" data-val="4">★</button>
+            <button class="star-btn" data-val="5">★</button>
+          </div>
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label>Commentaire</label>
+          <textarea id="f-comment" placeholder="Tes impressions…"></textarea>
         </div>
       </div>
-      <div class="field">
-        <label>Commentaire</label>
-        <textarea id="f-comment" placeholder="Tes impressions…"></textarea>
-      </div>
       <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HASARD -->
+<div id="random-overlay">
+  <div id="random-box">
+    <div id="random-header">
+      <h2>🎲 On mange où ?</h2>
+      <button id="random-close">×</button>
+    </div>
+    <div id="random-body">
+      <div class="field">
+        <label>Type de cuisine</label>
+        <select id="rand-cuisine"><option value="">Tous types</option></select>
+      </div>
+      <div class="field">
+        <label>Prix</label>
+        <select id="rand-price">
+          <option value="">Tous prix</option>
+          <option value="€">€</option>
+          <option value="€€">€€</option>
+          <option value="€€€">€€€</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Note minimale</label>
+        <select id="rand-note">
+          <option value="">Toute note</option>
+          <option value="5">★★★★★ seulement</option>
+          <option value="4">★★★★ et +</option>
+          <option value="3">★★★ et +</option>
+        </select>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;cursor:pointer">
+        <input type="checkbox" id="rand-exclude-totry" checked />
+        Exclure les "À tester"
+      </label>
+      <button id="btn-random-pick">🎲 Choisir pour moi !</button>
+      <div id="rand-result" style="display:none">
+        <h3 id="rand-name"></h3>
+        <div id="rand-meta"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="btn-random-again">↺ Un autre</button>
+          <button class="btn btn-secondary" id="btn-rand-locate" style="flex:1">📍 Voir sur la carte</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -510,19 +692,25 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
 }).addTo(map);
 
 // icône personnalisée
-function makeIcon(note) {
-  const color = note >= 4 ? '#27ae60' : note >= 3 ? '#f0a500' : note >= 1 ? '#c0392b' : '#999';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
+function makeSvgPin(color, label) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
     <ellipse cx="15" cy="40" rx="6" ry="2" fill="rgba(0,0,0,.2)"/>
     <path d="M15 0 C7 0 1 6 1 14 C1 24 15 40 15 40 C15 40 29 24 29 14 C29 6 23 0 15 0Z" fill="${color}" stroke="white" stroke-width="1.5"/>
-    <text x="15" y="18" text-anchor="middle" font-size="13" fill="white" font-family="Arial" font-weight="bold">${note || '?'}</text>
+    <text x="15" y="19" text-anchor="middle" font-size="14" fill="white" font-family="Arial" font-weight="bold">${label}</text>
   </svg>`;
+}
+
+function makeIcon(r) {
+  if (r.toTry) {
+    return L.divIcon({
+      html: `<div class="pulse-marker">${makeSvgPin('#3498db', '?')}</div>`,
+      iconSize: [30, 42], iconAnchor: [15, 42], popupAnchor: [0, -44], className: ''
+    });
+  }
+  const color = r.note >= 4 ? '#27ae60' : r.note >= 3 ? '#f0a500' : r.note >= 1 ? '#c0392b' : '#999';
   return L.divIcon({
-    html: svg,
-    iconSize: [30, 42],
-    iconAnchor: [15, 42],
-    popupAnchor: [0, -44],
-    className: ''
+    html: makeSvgPin(color, r.note || '?'),
+    iconSize: [30, 42], iconAnchor: [15, 42], popupAnchor: [0, -44], className: ''
   });
 }
 
@@ -666,9 +854,85 @@ document.getElementById('setup-done').addEventListener('click', hideSetup);
 document.getElementById('btn-settings').addEventListener('click', showSetup);
 
 // ══════════════════════════════════════════
+//  MODAL HASARD
+// ══════════════════════════════════════════
+let lastRandomPool = [];
+
+function openRandom() {
+  // Peupler le select cuisine
+  const types = [...new Set(restos.map(r => r.cuisine).filter(Boolean))].sort();
+  const sel = document.getElementById('rand-cuisine');
+  sel.innerHTML = '<option value="">Tous types</option>' +
+    types.map(t => `<option value="${t}">${t}</option>`).join('');
+  document.getElementById('rand-result').style.display = 'none';
+  document.getElementById('random-overlay').classList.add('open');
+}
+
+function closeRandom() {
+  document.getElementById('random-overlay').classList.remove('open');
+}
+
+function pickRandom() {
+  const cuisine  = document.getElementById('rand-cuisine').value;
+  const price    = document.getElementById('rand-price').value;
+  const minNote  = parseInt(document.getElementById('rand-note').value) || 0;
+  const exclTry  = document.getElementById('rand-exclude-totry').checked;
+
+  const pool = restos.filter(r => {
+    if (exclTry && r.toTry)           return false;
+    if (cuisine && r.cuisine !== cuisine) return false;
+    if (price   && r.price   !== price)   return false;
+    if (minNote && r.note    <  minNote)  return false;
+    return true;
+  });
+
+  if (!pool.length) {
+    document.getElementById('rand-result').style.display = 'none';
+    document.getElementById('btn-random-pick').textContent = '😔 Aucun résultat — change les filtres';
+    return;
+  }
+  document.getElementById('btn-random-pick').textContent = '🎲 Choisir pour moi !';
+  lastRandomPool = pool;
+  showRandomResult(pool[Math.floor(Math.random() * pool.length)]);
+}
+
+function showRandomResult(r) {
+  document.getElementById('rand-name').textContent = r.name;
+  document.getElementById('rand-meta').innerHTML = `
+    ${r.toTry ? '<span class="badge-totry">📌 À tester</span>' : `<span style="color:#f0a500;font-size:15px">${'★'.repeat(r.note)}${'☆'.repeat(5-r.note)}</span>`}
+    ${r.cuisine ? `<span class="badge">${r.cuisine}</span>` : ''}
+    ${r.price   ? `<span class="badge">${r.price}</span>`   : ''}
+  `;
+  document.getElementById('rand-result').style.display = 'flex';
+  document.getElementById('btn-rand-locate').onclick = () => {
+    closeRandom();
+    map.setView([r.lat, r.lng], 16);
+    markers[r.id]?.openPopup();
+    setActiveCard(r.id);
+    renderSidebar();
+  };
+}
+
+document.getElementById('btn-random-open').addEventListener('click', openRandom);
+document.getElementById('random-close').addEventListener('click', closeRandom);
+document.getElementById('random-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('random-overlay')) closeRandom();
+});
+document.getElementById('btn-random-pick').addEventListener('click', pickRandom);
+document.getElementById('btn-random-again').addEventListener('click', () => {
+  if (!lastRandomPool.length) return;
+  showRandomResult(lastRandomPool[Math.floor(Math.random() * lastRandomPool.length)]);
+});
+
+// ══════════════════════════════════════════
 //  MODAL
 // ══════════════════════════════════════════
 let pendingLat = null, pendingLng = null;
+
+function setToTryUI(on) {
+  document.getElementById('f-totry').checked = on;
+  document.getElementById('fields-note-comment').style.display = on ? 'none' : 'block';
+}
 
 function openModalNew(lat, lng) {
   editId = null;
@@ -681,6 +945,7 @@ function openModalNew(lat, lng) {
   document.getElementById('f-price').value = '';
   document.getElementById('f-comment').value = '';
   renderStars(0);
+  setToTryUI(false);
   document.getElementById('modal-actions').innerHTML = `
     <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
     <button class="btn btn-primary" onclick="saveNew()">Ajouter</button>
@@ -692,13 +957,14 @@ function openModalEdit(id) {
   const r = restos.find(x => x.id === id);
   if (!r) return;
   editId = id;
-  currentNote = r.note;
+  currentNote = r.note || 0;
   document.getElementById('modal-title').textContent = 'Modifier le restaurant';
   document.getElementById('f-name').value = r.name;
   document.getElementById('f-cuisine').value = r.cuisine || '';
   document.getElementById('f-price').value = r.price || '';
   document.getElementById('f-comment').value = r.comment || '';
-  renderStars(r.note);
+  renderStars(r.note || 0);
+  setToTryUI(!!r.toTry);
   document.getElementById('modal-actions').innerHTML = `
     <button class="btn btn-danger" onclick="deleteResto('${id}')">Supprimer</button>
     <button class="btn btn-warning" onclick="startMove('${id}')">Déplacer</button>
@@ -731,13 +997,21 @@ document.querySelectorAll('.star-btn').forEach(btn => {
   });
 });
 
+// toggle À tester
+document.getElementById('f-totry').addEventListener('change', e => {
+  setToTryUI(e.target.checked);
+  if (e.target.checked) { currentNote = 0; renderStars(0); }
+});
+
 function getFormData() {
+  const toTry = document.getElementById('f-totry').checked;
   return {
     name:    document.getElementById('f-name').value.trim(),
     cuisine: document.getElementById('f-cuisine').value.trim(),
     price:   document.getElementById('f-price').value,
-    note:    currentNote,
-    comment: document.getElementById('f-comment').value.trim()
+    note:    toTry ? 0 : currentNote,
+    comment: toTry ? '' : document.getElementById('f-comment').value.trim(),
+    toTry:   toTry
   };
 }
 
@@ -761,7 +1035,7 @@ function saveEdit() {
   Object.assign(r, data);
   // màj marker
   if (markers[r.id]) {
-    markers[r.id].setIcon(makeIcon(r.note));
+    markers[r.id].setIcon(makeIcon(r));
     markers[r.id].setPopupContent(popupContent(r));
   }
   closeModal();
@@ -806,19 +1080,22 @@ function finishMove(lat, lng) {
 //  MARKERS
 // ══════════════════════════════════════════
 function popupContent(r) {
-  const stars = '★'.repeat(r.note) + '☆'.repeat(5 - r.note);
+  const noteLine = r.toTry
+    ? `<span style="background:#3498db;color:#fff;padding:1px 7px;border-radius:4px;font-size:12px;font-weight:600">📌 À tester</span>`
+    : `<span style="color:#f0a500">${'★'.repeat(r.note)}${'☆'.repeat(5 - r.note)}</span>`;
   return `<div style="min-width:160px">
     <strong style="font-size:14px">${r.name}</strong><br>
-    <span style="color:#f0a500">${stars}</span><br>
+    ${noteLine}<br>
     ${r.cuisine ? `<span style="color:#666;font-size:12px">${r.cuisine}</span> ` : ''}
-    ${r.price ? `<span style="background:#eee;padding:1px 5px;border-radius:4px;font-size:12px">${r.price}</span>` : ''}<br>
+    ${r.price ? `<span style="background:#eee;padding:1px 5px;border-radius:4px;font-size:12px">${r.price}</span>` : ''}
+    ${(r.cuisine || r.price) ? '<br>' : ''}
     ${r.comment ? `<em style="font-size:12px;color:#444">${r.comment}</em><br>` : ''}
     <button onclick="openModalEdit('${r.id}')" style="margin-top:8px;padding:4px 10px;background:#c0392b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">Modifier</button>
   </div>`;
 }
 
 function addMarker(r) {
-  const m = L.marker([r.lat, r.lng], { icon: makeIcon(r.note) })
+  const m = L.marker([r.lat, r.lng], { icon: makeIcon(r) })
     .addTo(map)
     .bindPopup(popupContent(r));
   m.on('click', () => {
@@ -857,14 +1134,16 @@ function renderSidebar() {
 
   document.getElementById('resto-list').innerHTML = list.length
     ? list.map(r => `
-      <div class="resto-card${r.id === activeCardId ? ' active' : ''}" onclick="focusResto('${r.id}')">
+      <div class="resto-card${r.id === activeCardId ? ' active' : ''}${r.toTry ? ' to-try-card' : ''}" onclick="focusResto('${r.id}')">
         <div class="card-name">${r.name}</div>
         <div class="card-meta">
-          <span class="card-stars">${'★'.repeat(r.note)}${'☆'.repeat(5-r.note)}</span>
+          ${r.toTry
+            ? `<span class="badge-totry">📌 À tester</span>`
+            : `<span class="card-stars">${'★'.repeat(r.note)}${'☆'.repeat(5-r.note)}</span>`}
           ${r.cuisine ? `<span class="badge">${r.cuisine}</span>` : ''}
           ${r.price ? `<span class="badge">${r.price}</span>` : ''}
         </div>
-        ${r.comment ? `<div style="font-size:12px;color:#777;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.comment}</div>` : ''}
+        ${!r.toTry && r.comment ? `<div style="font-size:12px;color:#777;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.comment}</div>` : ''}
       </div>`).join('')
     : '<p style="padding:16px;color:#aaa;font-size:13px;text-align:center">Aucun restaurant trouvé</p>';
 }
